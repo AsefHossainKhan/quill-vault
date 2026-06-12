@@ -1,0 +1,43 @@
+# Backend
+backend/.venv/
+backend/data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend runtime
+.pids/
+logs/
+data/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Celery
+celerybeat-schedule
+
+# Database
+*.db
+
+# Audio files (stored locally, not in git)
+*.webm
+*.wav
+*.mp3
+*.m4a

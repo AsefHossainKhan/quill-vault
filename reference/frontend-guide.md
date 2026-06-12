@@ -1,5 +1,5 @@
 # QuillVault v2 — Frontend Development Guide
-> Electron + React + TypeScript desktop application
+> Electron + React + TypeScript desktop application with client-side AI
 
 ---
 
@@ -19,11 +19,76 @@
 | HTTP client | Axios | 1.x |
 | Forms | React Hook Form + Zod | 7.x + 3.x |
 | Waveform | WaveSurfer.js | 7.x |
+| **Client-side AI** | **@huggingface/transformers** | **3.x** |
+| **Whisper models** | **ONNX Runtime Web (via transformers)** | **via deps** |
 | Markdown render | react-markdown + remark-gfm | latest |
 | Markdown editor | CodeMirror 6 | latest |
 | Local storage | electron-store | 10.x |
 | Icons | lucide-react | latest |
 | Date formatting | date-fns | 3.x |
+
+### 1.1 Client-Side AI Architecture
+
+QuillVault supports **dual transcription mode**: the user can choose between client-side (local) or server-side (backend) processing.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TRANSCRIPTION MODE                          │
+│                                                                 │
+│  ┌────────────────────────┐    ┌────────────────────────────┐  │
+│  │   LOCAL (Client-side)  │    │   REMOTE (Server-side)     │  │
+│  │                        │    │                            │  │
+│  │  Web Audio API capture │    │  Web Audio API capture     │  │
+│  │          ↓             │    │          ↓                 │  │
+│  │  Web Worker            │    │  Upload to backend         │  │
+│  │          ↓             │    │          ↓                 │  │
+│  │  @huggingface/         │    │  Celery pipeline           │  │
+│  │  transformers          │    │  (faster-whisper +         │  │
+│  │  (Whisper ONNX)        │    │   pyannote + LLM)         │  │
+│  │          ↓             │    │          ↓                 │  │
+│  │  Raw transcript JSON   │    │  Full pipeline results     │  │
+│  │          ↓             │    │                            │  │
+│  │  Upload transcript     │    │                            │  │
+│  │  to backend for        │    │                            │  │
+│  │  diarization + naming  │    │                            │  │
+│  └────────────────────────┘    └────────────────────────────┘  │
+│                                                                 │
+│  Features:                                                     │
+│  • User selects mode in Settings or per-recording              │
+│  • Local mode: instant transcription, no server needed for     │
+│    transcription step                                          │
+│  • Remote mode: full server pipeline, better accuracy with     │
+│    larger models                                               │
+│  • Both modes can still use backend for diarization + naming   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Local transcription flow:**
+1. Audio captured via Web Audio API (same as recording)
+2. Audio blob decoded to Float32Array (16kHz mono)
+3. Sent to Web Worker running `@huggingface/transformers` (Whisper ONNX)
+4. Worker returns `{segments: [{start, end, text}], language, duration}`
+5. Transcript JSON stored locally and optionally uploaded to backend for diarization/naming
+
+**Key libraries:**
+- `@huggingface/transformers` — Runs Whisper models via ONNX Runtime Web in a Web Worker
+- Models: `whisper-tiny` (39MB), `whisper-base` (74MB), `whisper-small` (244MB), `whisper-medium` (769MB)
+- WebGPU acceleration when available (falls back to WASM)
+- Models cached in browser IndexedDB after first download
+
+**Why Whisper (validated):**
+- Whisper is the best choice for batch/offline ASR (our use case: record then transcribe)
+- Apache 2.0 license — fully permissive, no restrictions
+- No HuggingFace token required — ONNX models freely downloadable from `openai/whisper-*`
+- **Moonshine** was considered but is optimized for live/streaming (not batch) and has no browser/web WASM support
+- **VAD**: Whisper has built-in VAD filter (`vad_filter=True`) — no separate VAD needed for batch transcription
+- For live/streaming use cases in the future, consider Silero VAD (MIT, 2MB ONNX) or Moonshine native
+
+**Model bundling strategy:**
+- During development: models downloaded from HuggingFace Hub on first use, cached in IndexedDB
+- For production (Electron): models bundled in app resources via `env.localModelPath`
+- Default model: `whisper-base` (74MB) — good balance of accuracy and size
+- Users can upgrade to larger models via Settings (downloaded on demand)
 
 ---
 
@@ -74,7 +139,8 @@ desktop-app/
 │       │   ├── stores/           # Zustand stores
 │       │   │   ├── authStore.ts
 │       │   │   ├── settingsStore.ts
-│       │   │   └── recordingStore.ts
+│       │   │   ├── recordingStore.ts
+│       │   │   └── transcriptionStore.ts  # transcription mode + model settings
 │       │   │
 │       │   ├── pages/
 │       │   │   ├── Login.tsx
@@ -97,7 +163,8 @@ desktop-app/
 │       │   │   │   ├── Waveform.tsx
 │       │   │   │   ├── ChannelStatus.tsx
 │       │   │   │   ├── RecordingControls.tsx
-│       │   │   │   └── AudioDeviceSelector.tsx
+│       │   │   │   ├── AudioDeviceSelector.tsx
+│       │   │   │   └── TranscriptionModeSelector.tsx
 │       │   │   ├── document/
 │       │   │   │   ├── PipelineStatus.tsx
 │       │   │   │   ├── TabRawTranscript.tsx
@@ -117,7 +184,11 @@ desktop-app/
 │       │   │
 │       │   └── lib/
 │       │       ├── utils.ts      # cn() and generic helpers
-│       │       └── constants.ts  # PIPELINE_STAGES, etc.
+│       │       ├── constants.ts  # PIPELINE_STAGES, etc.
+│       │       └── whisper.ts    # Whisper model loading, audio decode helpers
+│       │
+│       └── workers/
+│           └── whisperWorker.ts  # Web Worker for local Whisper ONNX transcription
 ```
 
 ---
@@ -195,9 +266,9 @@ export function registerAudioHandlers() {
 
 ---
 
-## 4. Audio Recording
+## 4. Audio Recording & Client-Side Transcription
 
-This is the most critical and complex feature. Two independent channels must be captured and kept separate.
+This is the most critical and complex feature. Two independent channels must be captured and kept separate, and transcription can happen locally or on the server.
 
 ### 4.1 Architecture
 
@@ -213,8 +284,20 @@ This is the most critical and complex feature. Two independent channels must be 
 └─────────────────────────┘    │  → Blob chunks           │
                                └──────────────────────────┘
                                           ↓
-                               Both blobs → upload as
-                               multipart form data
+                               Both blobs →
+                    ┌────────────────────┬───────────────────┐
+                    ↓                    ↓                   │
+          LOCAL MODE              REMOTE MODE               │
+          Decode blob →           Upload multipart          │
+          Web Worker               form data                │
+          (Whisper ONNX)          to /api/recordings       │
+          ↓                       ↓                         │
+          Raw transcript         Full pipeline              │
+          JSON locally           on server                  │
+          ↓                                                     │
+          POST /recordings/{id}/transcripts                     │
+          (upload raw transcript for                            │
+           server-side diarization + naming)                   │
 ```
 
 ### 4.2 `useAudioRecorder` Hook
@@ -447,6 +530,7 @@ export async function uploadRecording(
   systemBlob: Blob | null,
   templateId: string,
   language: string,
+  transcriptJson: string | null, // NEW: client-side transcript JSON
   onProgress: (percent: number) => void,
 ): Promise<{ jobId: string; recordingId: string }> {
   const form = new FormData()
@@ -456,6 +540,10 @@ export async function uploadRecording(
   form.append('mic_audio', micBlob, 'mic.webm')
   if (systemBlob) {
     form.append('system_audio', systemBlob, 'system.webm')
+  }
+  // If client did local transcription, send the raw transcript JSON
+  if (transcriptJson) {
+    form.append('transcript', transcriptJson)
   }
 
   const { data } = await apiClient.post('/recordings', form, {
@@ -468,11 +556,107 @@ export async function uploadRecording(
 }
 ```
 
+### 4.4 Local Transcription (Client-Side Whisper)
+
+When the user selects **Local** mode, transcription runs in a Web Worker using `@huggingface/transformers` (Whisper ONNX). The UI stays responsive while the model processes audio.
+
+```typescript
+// src/lib/whisperWorker.ts — runs in a Web Worker
+// Uses @huggingface/transformers to load Whisper ONNX models
+// Model is cached in IndexedDB after first download
+
+// Architecture:
+//   Main thread                    Web Worker
+//   ──────────                    ──────────
+//   startTranscription(blob)  →   load model (if not cached)
+//                                 decode audio → Float32Array (16kHz)
+//                                 run Whisper inference
+//                          ←      postMessage({segments, language})
+//   onProgress(pct)          ←   postMessage({progress: pct})
+
+// Supported models:
+//   whisper-tiny   ~39 MB   ~1s/sec on CPU   lowest accuracy
+//   whisper-base   ~74 MB   ~2s/sec on CPU   good for short recordings
+//   whisper-small  ~244 MB  ~5s/sec on CPU   balanced
+//   whisper-medium ~769 MB  ~15s/sec on CPU  high accuracy
+
+// The worker returns:
+interface WhisperResult {
+  segments: Array<{ start: number; end: number; text: string }>
+  language: string
+  duration: number
+}
+```
+
+**Flow for local transcription:**
+1. User stops recording → `micBlob` available
+2. `decodeAudioData(micBlob)` → `Float32Array` (16kHz mono PCM)
+3. Post audio buffer to Web Worker with model name + language
+4. Worker loads model from cache (or downloads first time)
+5. Worker posts progress updates (0–100%) → shown in UI
+6. Worker returns `WhisperResult` with segments
+7. Frontend sends `segments` as JSON to `POST /recordings` (with `transcript` field)
+8. Backend receives pre-transcribed data, skips whisper step, runs diarization → naming → output
+
+**Model management:**
+- Models are downloaded from Hugging Face Hub and cached in IndexedDB
+- First download shows progress bar in the recording UI
+- Subsequent uses load from cache instantly
+- Model selection persisted in `transcriptionStore` (Zustand + persist)
+
 ---
 
 ## 5. State Management
 
 ### 5.1 Zustand Stores
+
+**Transcription store:**
+```typescript
+// src/stores/transcriptionStore.ts
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+export type TranscriptionMode = 'local' | 'remote'
+export type WhisperModel = 'tiny' | 'base' | 'small' | 'medium'
+
+interface TranscriptionState {
+  /** "local" = client-side Whisper, "remote" = server pipeline */
+  mode: TranscriptionMode
+  /** Which Whisper model to use for local transcription */
+  whisperModel: WhisperModel
+  /** Whether the Whisper model has been downloaded and cached */
+  modelReady: boolean
+  /** Current local transcription progress (0–100) */
+  progress: number
+  /** Error message if transcription failed */
+  error: string | null
+
+  setMode: (mode: TranscriptionMode) => void
+  setWhisperModel: (model: WhisperModel) => void
+  setModelReady: (ready: boolean) => void
+  setProgress: (progress: number) => void
+  setError: (error: string | null) => void
+}
+
+export const useTranscriptionStore = create<TranscriptionState>()(
+  persist(
+    (set) => ({
+      mode: 'local',
+      whisperModel: 'base',
+      modelReady: false,
+      progress: 0,
+      error: null,
+
+      setMode: (mode) => set({ mode }),
+      setWhisperModel: (model) => set({ whisperModel: model, modelReady: false }),
+      setModelReady: (ready) => set({ modelReady: ready }),
+      setProgress: (progress) => set({ progress }),
+      setError: (error) => set({ error }),
+    }),
+    { name: 'qv-transcription' },
+  )
+)
+```
 
 **Auth store:**
 ```typescript
@@ -591,7 +775,7 @@ export const queryKeys = {
 ## 6. API Client
 
 ```typescript
-// src/renderer/src/api/client.ts
+// src/api/client.ts
 import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { useSettingsStore } from '../stores/settingsStore'

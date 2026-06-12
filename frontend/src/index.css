@@ -1,68 +1,85 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
+@layer base {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    /* DESIGN.md — Light Mode */
+    --background: 250 60% 99%;         /* #fbf8ff */
+    --foreground: 233 10% 10%;         /* #1a1b22 */
+    --card: 0 0% 100%;                 /* #ffffff */
+    --card-foreground: 233 10% 10%;    /* #1a1b22 */
+    --primary: 239 73% 55%;            /* #4648d4 */
+    --primary-foreground: 0 0% 100%;   /* #ffffff */
+    --secondary: 236 5% 96%;           /* #f4f2fd */
+    --secondary-foreground: 230 8% 30%;/* #464554 */
+    --muted: 248 10% 95%;              /* #eeedf7 */
+    --muted-foreground: 243 7% 49%;    /* #767586 */
+    --accent: 239 73% 95%;             /* Indigo-50 */
+    --accent-foreground: 239 73% 55%;  /* #4648d4 */
+    --accent-subtle: 245 50% 97%;
+    --destructive: 0 74% 42%;          /* #ba1a1a */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;            /* #22C55E */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;             /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --border: 247 11% 81%;             /* #c7c4d7 */
+    --input: 247 11% 81%;              /* #c7c4d7 */
+    --ring: 239 73% 55%;               /* #4648d4 */
+    --radius: 0.75rem;
   }
-  a:hover {
-    color: #747bff;
+
+  .dark {
+    /* DESIGN.md — Dark Mode */
+    --background: 233 10% 4%;          /* #09090B */
+    --foreground: 0 0% 98%;            /* #fafafa */
+    --card: 240 6% 10%;                /* #18181B */
+    --card-foreground: 0 0% 98%;       /* #fafafa */
+    --primary: 239 84% 67%;            /* #818CF8 */
+    --primary-foreground: 0 0% 4%;     /* #09090B */
+    --secondary: 240 4% 16%;           /* #27272A */
+    --secondary-foreground: 0 0% 80%;  /* #a1a1aa */
+    --muted: 240 4% 16%;               /* #27272A */
+    --muted-foreground: 240 5% 65%;    /* #a1a1aa */
+    --accent: 235 40% 20%;             /* #1E1B4B */
+    --accent-foreground: 239 84% 67%;  /* #818CF8 */
+    --accent-subtle: 235 50% 10%;
+    --destructive: 0 63% 55%;          /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;            /* #22C55E */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;             /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --border: 240 4% 25%;              /* #3F3F46 */
+    --input: 240 4% 25%;               /* #3F3F46 */
+    --ring: 239 84% 67%;               /* #818CF8 */
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+@layer base {
+  * {
+    @apply border-border;
   }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Electron frameless window drag regions */
+.drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+.no-drag-region {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }

@@ -1,5 +1,45 @@
 # QuillVault v2 — Backend Development Guide
 > FastAPI + PostgreSQL + Celery + LangChain
+> Supports dual transcription: client-side (Whisper ONNX) or server-side (faster-whisper)
+
+---
+
+## 0. Core Principle: Standalone, Repeatable Pipeline Steps
+
+**Every processing step is standalone, repeatable, and produces a viewable artifact.**
+
+```
+RECORDING → TRANSCRIPTION → DIARIZATION → SPEAKER NAMING → OUTPUT GENERATION
+   │              │               │                │                │
+   ↓              ↓               ↓                ↓                ↓
+ Audio files  Raw transcript  Diarized        Named             Final
+ (mic.webm)   JSON            transcript      transcript        output
+               (viewable)     JSON            JSON              (markdown)
+                              (viewable)      (viewable)        (viewable)
+```
+
+**Key rules:**
+1. **Each step is independently runnable** — If transcription succeeds but diarization fails, transcription output is preserved. User can retry just diarization.
+2. **Each step is repeatable** — User can re-run transcription with a different model, or re-run naming with different speaker assignments.
+3. **Each step's output is stored and viewable** — All intermediate artifacts (raw transcript, diarized transcript, named transcript, output) are saved to disk and can be viewed in the Document Viewer at any time.
+4. **Error isolation** — A failure in one step does NOT corrupt outputs of previous steps. The job tracks which step failed and preserves all completed artifacts.
+5. **Steps can be skipped** — If the user provides a client-side transcript, the backend skips the transcription step and starts from diarization.
+6. **Pipeline is configurable** — User can choose which steps to run (e.g., skip diarization, use a different template for output).
+
+**Storage per recording:**
+```
+/data/recordings/{recording_id}/
+├── mic_audio.webm          # Original mic recording
+├── system_audio.webm       # Original system audio (optional)
+├── transcripts/
+│   ├── raw.json            # Step 1: Raw transcript
+│   ├── diarized.json       # Step 2: Diarized transcript
+│   ├── named.json          # Step 3: Named transcript
+│   └── output.md           # Step 4: Generated output
+└── metadata.json           # Recording metadata + pipeline state
+```
+
+This philosophy applies to BOTH the backend pipeline AND the frontend local transcription workflow.
 
 ---
 
@@ -17,7 +57,7 @@
 | Auth | python-jose + passlib (bcrypt) | latest |
 | File uploads | python-multipart | latest |
 | Async file I/O | aiofiles | latest |
-| Transcription | faster-whisper | 1.x |
+| Transcription (server) | faster-whisper | 1.x |
 | Diarization | pyannote.audio | 3.x |
 | Audio processing | librosa + noisereduce | latest |
 | Alignment | whisperx | latest |
@@ -27,6 +67,21 @@
 | Config | pydantic-settings | 2.x |
 | Logging | structlog | latest |
 | Storage | local filesystem (S3-compatible interface) | — |
+
+### 1.1 Dual Transcription Mode
+
+The backend supports two ingestion modes:
+
+| Mode | How it works | When to use |
+|------|-------------|-------------|
+| **Server-transcribed** | Client uploads raw audio → backend runs faster-whisper → full pipeline | Better accuracy (larger models), no client-side compute |
+| **Client-transcribed** | Client runs Whisper ONNX locally → uploads raw transcript JSON → backend runs diarization + naming + output | Faster, works offline for transcription, lower bandwidth |
+
+The `POST /recordings` endpoint accepts an optional `transcript` field:
+- **If `transcript` is absent**: backend transcribes the audio (server mode)
+- **If `transcript` is present**: backend skips transcription and goes directly to diarization → naming → output generation (client mode)
+
+This is transparent to the rest of the pipeline — diarization, speaker naming, and output generation work the same regardless of transcription source.
 
 ---
 
@@ -246,7 +301,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
 
 # Possible stages, in order:
-# queued → transcribing → diarizing → naming → generating → done
+# Server mode:  queued → transcribing → diarizing → naming → generating → done
+# Client mode:  queued → diarizing → naming → generating → done
 # Any stage can transition to: failed
 
 class Job(Base, TimestampMixin):
@@ -260,6 +316,8 @@ class Job(Base, TimestampMixin):
     template_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey('templates.id'), nullable=True
     )
+    # 'server' = full pipeline on backend, 'client' = transcript uploaded from frontend
+    transcription_mode: Mapped[str] = mapped_column(String(16), default='server')
 
     recording: Mapped['Recording'] = relationship(back_populates='jobs')
 ```
@@ -372,7 +430,8 @@ class ChatMessage(Base, TimestampMixin):
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/recordings` | Upload mic + system audio, create job |
+| POST | `/recordings` | Upload mic + system audio, optionally with client-side transcript JSON, create job |
+| POST | `/recordings/{id}/transcript` | Upload client-side raw transcript JSON for an existing recording (client-transcribed mode) |
 | GET | `/recordings` | List user's recordings (paginated) |
 | GET | `/recordings/{id}` | Recording detail + active job ID |
 | PATCH | `/recordings/{id}` | Rename recording |
@@ -432,14 +491,22 @@ POST /recordings
 │
 ├── Save audio files to disk
 ├── Create Recording row
-├── Create Job row (stage='queued')
-├── Enqueue Celery task: process_recording.delay(job_id)
-└── Return { recording_id, job_id }
+├── Create Job row (stage='queued', transcription_mode='server' | 'client')
+│
+├─── If transcription_mode='server':
+│    ├── Enqueue: process_recording_full.delay(job_id)
+│    └── Return { recording_id, job_id }
+│
+├─── If transcription_mode='client':
+│    ├── If transcript JSON provided in upload: save it, enqueue process_from_transcript.delay(job_id)
+│    ├── If no transcript yet: return { recording_id, job_id } (client will POST transcript later)
+│    └── Client then POST /recordings/{id}/transcript → triggers process_from_transcript
+│
 
-                    Celery Worker
+                    Celery Worker — FULL PIPELINE (server mode)
                     ┌──────────────────────────────────────────────────────────────┐
                     │                                                              │
-                    │  process_recording(job_id)                                   │
+                    │  process_recording_full(job_id)                              │
                     │                                                              │
                     │  1. stage='transcribing'  → run faster-whisper              │
                     │     → save Transcript(type='raw')                           │
@@ -622,6 +689,108 @@ def _default_prompt() -> str:
         'Include: attendees (if identifiable), key discussion points, decisions made, '
         'and action items with owners. Use markdown formatting.'
     )
+```
+
+### 6.4 Client-Transcription Pipeline Task
+
+When the frontend provides a pre-computed transcript (local Whisper ONNX), the backend skips transcription and starts from diarization:
+
+```python
+# src/tasks/pipeline.py (continued)
+
+@celery.task(bind=True, name='tasks.process_from_transcript', max_retries=0)
+def process_from_transcript(self, job_id: str, transcript_json: str) -> None:
+    """
+    Client-side transcription mode:
+    Frontend ran Whisper ONNX locally, uploaded the raw transcript JSON.
+    Backend skips transcription, starts from diarization.
+    """
+    with SyncSessionLocal() as db:
+        job = db.get(Job, UUID(job_id))
+        if not job:
+            logging.error(f'Job not found: {job_id}')
+            return
+
+        recording = job.recording
+        template = job.template
+
+        try:
+            # ── Stage 1: Save client-provided raw transcript ─────────
+            raw_segments = json.loads(transcript_json)
+            raw_content = json.dumps(raw_segments, ensure_ascii=False)
+            db.add(Transcript(
+                recording_id=recording.id,
+                type='raw',
+                content=raw_content,
+            ))
+            db.commit()
+            _update_job(db, job, 'diarizing', 25)
+
+            # ── Stage 2: Diarization + Alignment ───────────────────
+            audio_data, sample_rate = preprocess_and_merge(
+                mic_path=recording.mic_audio_path,
+                system_path=recording.system_audio_path,
+            )
+            diarized_segments = diarize_audio(
+                audio_data, sample_rate, raw_segments, recording.language
+            )
+            diarized_content = json.dumps(diarized_segments, ensure_ascii=False)
+            db.add(Transcript(
+                recording_id=recording.id,
+                type='diarized',
+                content=diarized_content,
+            ))
+
+            # Save detected speakers
+            speaker_labels: set[str] = {seg['speaker'] for seg in diarized_segments}
+            for label in sorted(speaker_labels):
+                sample = next(
+                    (s for s in diarized_segments if s['speaker'] == label and
+                     s['end'] - s['start'] >= 2.0),
+                    None
+                )
+                db.add(Speaker(
+                    recording_id=recording.id,
+                    label=label,
+                    name=None,
+                    sample_start_seconds=sample['start'] if sample else None,
+                    sample_end_seconds=sample['end'] if sample else None,
+                ))
+            db.commit()
+            _update_job(db, job, 'diarizing', 50)
+
+            # ── Stage 3: Speaker Naming ─────────────────────────────
+            _update_job(db, job, 'naming', 55)
+            named_segments, inferred_names = infer_speaker_names(diarized_segments)
+            named_content = json.dumps(named_segments, ensure_ascii=False)
+            db.add(Transcript(
+                recording_id=recording.id,
+                type='named',
+                content=named_content,
+            ))
+            for speaker in db.query(Speaker).filter_by(recording_id=recording.id).all():
+                if speaker.label in inferred_names:
+                    speaker.name = inferred_names[speaker.label]
+            db.commit()
+            _update_job(db, job, 'naming', 75)
+
+            # ── Stage 4: Output Generation ──────────────────────────
+            _update_job(db, job, 'generating', 80)
+            system_prompt = template.system_prompt if template else _default_prompt()
+            output_content = generate_output(named_segments, system_prompt)
+            db.add(Transcript(
+                recording_id=recording.id,
+                type='output',
+                content=output_content,
+                template_id=template.id if template else None,
+            ))
+            db.commit()
+            _update_job(db, job, 'done', 100)
+
+        except Exception as exc:
+            logging.exception(f'Client pipeline failed for job {job_id}: {exc}')
+            _update_job(db, job, 'failed', job.progress, error=str(exc))
+            raise
 ```
 
 ---

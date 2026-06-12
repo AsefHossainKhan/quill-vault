@@ -7,12 +7,18 @@
 
 **QuillVault** is a Windows desktop application for recording, transcribing, diarizing, and summarizing meetings and conversations. It captures microphone and system audio separately, processes the audio through an AI pipeline, and presents the results in a structured document viewer with an integrated chat interface.
 
+**Dual transcription architecture:**
+- **Local mode** — Client-side Whisper (ONNX via `@huggingface/transformers`) runs in a Web Worker. Fast, private, works offline for transcription. Supports tiny/base/small/medium models.
+- **Server mode** — Backend runs `faster-whisper` (large-v3). Higher accuracy, requires server connection.
+- User selects mode per-recording or globally in Settings. Both modes use the same backend for diarization, speaker naming, and output generation.
+
 **Core user journey:**
 1. Record or upload audio
-2. Wait for processing pipeline (transcription → diarization → speaker naming → output generation)
-3. Review each pipeline output as tabs in the document viewer
-4. Chat with the document
-5. Export or copy results
+2. Choose transcription mode: **Local** (client-side Whisper) or **Server** (backend pipeline)
+3. Wait for processing pipeline (transcription → diarization → speaker naming → output generation)
+4. Review each pipeline output as tabs in the document viewer
+5. Chat with the document
+6. Export or copy results
 
 ---
 
@@ -316,6 +322,11 @@ When no recording is selected:
 │  Audio Devices                              │
 │  Mic: [Default Microphone ▾]                │
 │                                             │
+│  Transcription                              │
+│  Mode: [● Local (Whisper)  ○ Server]        │
+│  Model: [tiny ▾]  (only shown in local)     │
+│  [ℹ Downloaded ✓] or [⬇ Download (39 MB)]  │
+│                                             │
 │  Duration: 00:04:32   [●● Rec]              │
 │                                             │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
@@ -326,6 +337,15 @@ When no recording is selected:
 │                                             │
 └─────────────────────────────────────────────┘
 ```
+
+**Transcription mode selector:**
+- Two radio-style options: **Local (Whisper)** and **Server**
+- Local: transcription runs in a Web Worker via `@huggingface/transformers` (Whisper ONNX)
+- Server: transcription runs on the backend via faster-whisper (requires server connection)
+- Model dropdown (local mode only): tiny (39 MB), base (74 MB), small (244 MB), medium (769 MB)
+- Download status indicator: shows whether the model is cached in IndexedDB
+- Language selector: affects both local and server transcription
+- Setting persisted in Zustand store (`qv-transcription`) and also in Settings page
 
 **Waveform visualizer:**
 - Live real-time waveform, two overlaid lines
@@ -344,7 +364,10 @@ When no recording is selected:
 - Pre-recording: large microphone icon, "Start Recording" single button
 - Recording: timer, waveform active, Pause/Stop/Discard buttons
 - Paused: timer frozen, "Resume" replaces "Pause", waveform static
-- Stopped/Reviewing: brief "Sending to backend..." loader
+- Stopped/Reviewing:
+  - **Local mode**: "Transcribing locally…" progress bar → then "Sending transcript to backend…"
+  - **Server mode**: "Sending to backend…" loader
+  - Both modes then transition to the Document Viewer with processing pipeline status
 
 ---
 
@@ -622,24 +645,20 @@ Shown below header, only when processing in progress or recently completed:
 │  Settings                                               │
 ├─────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐  ┌──────────────────────────────┐  │
-│  │ > Account       │  │  LLM Provider                │  │
+│  │ > Account       │  │  Transcription                │  │
 │  │   Appearance    │  │                              │  │
-│  │   Audio         │  │  Provider                    │  │
-│  │   LLM / AI      │  │  ┌──────────────────────┐    │  │
-│  │   Templates     │  │  │  OpenRouter       ▾  │    │  │
-│  │   About         │  │  └──────────────────────┘    │  │
-│  └─────────────────┘  │                              │  │
-│                        │  API Key                     │  │
-│                        │  ┌──────────────────────┐    │  │
-│                        │  │  sk-or-v1-••••••••   │    │  │
-│                        │  └──────────────────────┘    │  │
+│  │   Audio         │  │  Mode                        │  │
+│  │   Transcription │  │  ┌──────────────────────┐    │  │
+│  │   LLM / AI      │  │  │ ● Local (Whisper)   │    │  │
+│  │   Templates     │  │  │ ○ Server (faster-    │    │  │
+│  │   About         │  │  │   whisper)           │    │  │
+│  └─────────────────┘  │  └──────────────────────┘    │  │
 │                        │                              │  │
-│                        │  Model                       │  │
+│                        │  Whisper Model (local)       │  │
 │                        │  ┌──────────────────────┐    │  │
-│                        │  │  llama-3.1-8b-inst.  │    │  │
+│                        │  │  base (74 MB)     ▾  │    │  │
 │                        │  └──────────────────────┘    │  │
-│                        │                              │  │
-│                        │  [Test Connection  ✓]        │  │
+│                        │  [ℹ Model cached ✓]          │  │
 │                        │                              │  │
 │                        │  Backend Server URL          │  │
 │                        │  ┌──────────────────────┐    │  │
@@ -656,23 +675,41 @@ Shown below header, only when processing in progress or recently completed:
 - **Account:** Name, email, change password, delete account
 - **Appearance:** Light/Dark/System theme, font size, sidebar width
 - **Audio:** Default mic device dropdown, system audio toggle, audio quality (16kHz/44.1kHz), recording format
-- **LLM / AI:** Provider, API key, model selector, Whisper model size, backend URL, test connection button
+- **Transcription:** Mode selector (Local/Server), Whisper model size (local mode), model download status, backend URL
+- **LLM / AI:** Provider, API key, model selector, Whisper model size (server mode), backend URL, test connection button
 - **Templates:** Quick link to templates page
 - **About:** Version, check for updates, licenses
 
 ---
 
-### 4.11 Processing / Loading States
+### 4.11 Pipeline Architecture & Processing States
 
-**Global processing indicator (sidebar item):**
+**Core principle: Every step is standalone, repeatable, and produces a viewable artifact.**
+
+**Processing states in the Document Viewer:**
 - Recording item shows pulsing orange dot + "Processing..." text
 - Click opens document viewer with progress bar
+- Each step (transcription → diarization → naming → output) is shown separately
+- Failed steps show error with "Retry" button (re-runs only that step)
+- Completed steps show checkmark and are viewable immediately
+- User can click any completed step to view its output
 
-**Pipeline progress bar (in document viewer):**
+**Pipeline status bar (in document viewer):**
 ```
   ● Transcribed ──── ⟳ Diarizing ──── ○ Naming ──── ○ Output
   ████████████████████░░░░░░░░░░░░  54%  ~2 min remaining
 ```
+
+**Step-level actions:**
+- Hovering a completed step shows: View | Re-run | Download
+- "Re-run" re-executes just that step with the same or different parameters
+- "Download" saves the step's output artifact (JSON or markdown)
+
+**Error handling:**
+- Failed step shows red X with error message
+- "Retry" button re-runs ONLY the failed step
+- Previous steps' outputs are preserved and viewable
+- Next steps are blocked until the failed step succeeds
 
 **Skeleton loading states:**
 - Tab content: 3–4 lines of animated shimmer rectangles
