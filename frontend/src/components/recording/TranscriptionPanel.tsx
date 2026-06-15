@@ -11,6 +11,8 @@ export function TranscriptionPanel() {
   const stage = useTranscriptionStore((s) => s.stage)
   const error = useTranscriptionStore((s) => s.error)
   const detectedLanguage = useTranscriptionStore((s) => s.detectedLanguage)
+  const queueCount = useTranscriptionStore((s) => s.queueCount)
+  const isStopping = useTranscriptionStore((s) => s.isStopping)
   const reset = useTranscriptionStore((s) => s.reset)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -26,8 +28,8 @@ export function TranscriptionPanel() {
   const showProgress = (isTranscribing && !hasResult) || isModelLoading
   const showError = error && !isTranscribing
 
-  // Show during: model loading, transcribing, or when we have results
-  if (!hasResult && !showProgress && !showError && !isTranscribing) return null
+  // Show during: model loading, transcribing, stopping, or when we have results
+  if (!hasResult && !showProgress && !showError && !isTranscribing && !isStopping) return null
 
   return (
     <div className="space-y-2">
@@ -41,10 +43,21 @@ export function TranscriptionPanel() {
               <span className="ml-1.5 text-primary">({detectedLanguage})</span>
             )}
           </span>
-          {isTranscribing && (
+          {isTranscribing && !isStopping && (
             <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
               Live
+            </span>
+          )}
+          {isStopping && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase text-warning">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              Stopping
+            </span>
+          )}
+          {queueCount > 0 && !isStopping && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {queueCount} chunk{queueCount !== 1 ? 's' : ''} queued
             </span>
           )}
         </div>

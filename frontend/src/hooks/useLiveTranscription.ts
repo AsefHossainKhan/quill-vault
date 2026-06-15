@@ -36,6 +36,8 @@ export function useLiveTranscription() {
     setError,
     setDetectedLanguage,
     setModelReady,
+    setQueueCount,
+    setIsStopping,
     reset,
   } = useTranscriptionStore.getState()
 
@@ -201,6 +203,8 @@ export function useLiveTranscription() {
         if (totalSamples < 16000) return
 
         isTranscribingRef.current = true
+        // Track queue: we have 1 chunk being processed now
+        setQueueCount(1)
 
         try {
           const merged = mergeSamples()
@@ -220,8 +224,10 @@ export function useLiveTranscription() {
 
           setStage('Listening…')
           setProgress(0)
+          setQueueCount(0)
         } catch (err) {
           console.error('Live transcription error:', err)
+          setQueueCount(0)
         } finally {
           isTranscribingRef.current = false
         }
@@ -234,13 +240,18 @@ export function useLiveTranscription() {
 
   /** Stop live transcription and do a final full pass (mic + system mixed). */
   const stopLive = useCallback(async (): Promise<TranscriptSegment[]> => {
+    // Set stopping state immediately
+    setIsStopping(true)
+    setStage('Stopping… processing remaining audio')
+    setQueueCount(0)
+
     // Stop periodic transcription
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
     }
 
-    // Disconnect mic audio nodes
+    // Disconnect mic audio nodes (stops new audio from accumulating)
     if (micScriptNodeRef.current) {
       micScriptNodeRef.current.disconnect()
       micScriptNodeRef.current = null
@@ -301,19 +312,25 @@ export function useLiveTranscription() {
         setSegments(result.segments)
         setDetectedLanguage(result.detectedLanguage)
         setIsTranscribing(false)
+        setIsStopping(false)
+        setQueueCount(0)
         setProgress(100)
         setStage('Transcription complete')
         return result.segments
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
         setIsTranscribing(false)
+        setIsStopping(false)
+        setQueueCount(0)
         return []
       }
     }
 
     setIsTranscribing(false)
+    setIsStopping(false)
+    setQueueCount(0)
     return useTranscriptionStore.getState().segments
-  }, [mergeChunks, setStage, setProgress, setSegments, setDetectedLanguage, setError, setIsTranscribing])
+  }, [mergeChunks, setStage, setProgress, setSegments, setDetectedLanguage, setError, setIsTranscribing, setIsStopping, setQueueCount])
 
   return { startLive, stopLive, discardLive, preloadModel, isModelReady }
 }

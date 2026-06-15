@@ -14,6 +14,8 @@ interface RecordingControlsProps {
   startDisabled?: boolean
   /** Hint shown below the Start button when it's disabled */
   startHint?: string
+  /** When true, stop was clicked and remaining audio is being processed */
+  isStopping?: boolean
 }
 
 /** Start / Pause / Resume / Stop / Discard controls. */
@@ -27,6 +29,7 @@ export function RecordingControls({
   isUploading,
   startDisabled,
   startHint,
+  isStopping,
 }: RecordingControlsProps) {
   if (state === 'idle') {
     return (
@@ -85,10 +88,10 @@ export function RecordingControls({
         variant="destructive"
         onClick={onStop}
         className="gap-2"
-        disabled={isUploading}
+        disabled={isUploading || isStopping}
       >
         <Square className="h-4 w-4" />
-        Stop
+        {isStopping ? 'Stopping…' : 'Stop'}
       </Button>
 
       <Button

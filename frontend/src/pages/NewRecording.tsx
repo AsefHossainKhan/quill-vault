@@ -66,6 +66,7 @@ export default function NewRecording() {
   const transcriptionProgress = useTranscriptionStore((s) => s.progress)
   const transcriptionStage = useTranscriptionStore((s) => s.stage)
   const transcriptionReset = useTranscriptionStore((s) => s.reset)
+  const isStopping = useTranscriptionStore((s) => s.isStopping)
 
   const { startLive, stopLive, discardLive, preloadModel } = useLiveTranscription()
 
@@ -126,11 +127,12 @@ export default function NewRecording() {
   }, [state, micStream, systemStream, transcriptionMode, whisperModel, language, startLive])
 
   const handleStop = useCallback(async () => {
-    // Stop live transcription first (does final pass)
+    // Stop the recording timer immediately so duration freezes
+    await stop()
+    // Then process remaining transcription chunks
     if (transcriptionMode === 'local') {
       await stopLive()
     }
-    await stop()
   }, [stop, stopLive, transcriptionMode])
 
   const handleDiscard = useCallback(() => {
@@ -320,6 +322,7 @@ export default function NewRecording() {
             onStop={handleStop}
             onDiscard={handleDiscard}
             isUploading={isUploading}
+            isStopping={isStopping}
             startDisabled={transcriptionMode === 'local' && !modelReady}
             startHint={transcriptionMode === 'local' && !modelReady ? (transcriptionStage || 'Loading model…') : undefined}
           />

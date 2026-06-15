@@ -22,6 +22,10 @@ def generate_output(named_segments: list[dict], system_prompt: str) -> str:
         f"{s['speaker']}: {s['text']}" for s in named_segments
     )
 
+    if not transcript_text.strip():
+        logger.warning("Empty transcript — using fallback output")
+        return _fallback_output(named_segments)
+
     llm = get_llm()
     messages = [
         {"role": "system", "content": system_prompt},
@@ -40,6 +44,11 @@ def generate_output(named_segments: list[dict], system_prompt: str) -> str:
     if content.startswith("```"):
         lines = content.split("\n")
         content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+
+    # Sanity check: if the LLM returned something too short, use fallback
+    if len(content.strip()) < 20 and len(named_segments) > 0:
+        logger.warning(f"LLM output too short ({len(content)} chars), using fallback")
+        return _fallback_output(named_segments)
 
     logger.info(f"Generated output: {len(content)} chars")
     return content

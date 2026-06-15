@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { listRecordings } from '../api/recordings'
 import type { Recording } from '../types/api'
 
 /**
  * Shared hook for fetching recordings list.
  * Used by both Dashboard and the /record route so the sidebar always has data.
+ * Re-fetches on route change so sidebar shows fresh data (e.g. duration after pipeline).
  */
 export function useRecordings() {
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
+  const { pathname } = useLocation()
 
   const refresh = useCallback(async () => {
     try {
@@ -22,9 +25,10 @@ export function useRecordings() {
     }
   }, [])
 
+  // Re-fetch whenever the route changes (navigating between recordings, etc.)
   useEffect(() => {
     refresh()
-  }, [refresh])
+  }, [refresh, pathname])
 
   // Map to sidebar format
   const sidebarRecordings = recordings.map((rec) => ({

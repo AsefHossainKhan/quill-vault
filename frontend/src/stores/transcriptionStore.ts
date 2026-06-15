@@ -29,6 +29,10 @@ interface TranscriptionState {
   isTranscribing: boolean
   /** Detected language from transcription */
   detectedLanguage: string | null
+  /** Number of audio chunks waiting to be transcribed */
+  queueCount: number
+  /** Whether stop was clicked and remaining chunks are being processed */
+  isStopping: boolean
 
   setMode: (mode: TranscriptionMode) => void
   setWhisperModel: (model: WhisperModelId) => void
@@ -39,6 +43,8 @@ interface TranscriptionState {
   setSegments: (segments: TranscriptSegment[]) => void
   setIsTranscribing: (v: boolean) => void
   setDetectedLanguage: (lang: string | null) => void
+  setQueueCount: (count: number) => void
+  setIsStopping: (v: boolean) => void
   reset: () => void
 }
 
@@ -54,6 +60,8 @@ export const useTranscriptionStore = create<TranscriptionState>()(
       segments: [],
       isTranscribing: false,
       detectedLanguage: null,
+      queueCount: 0,
+      isStopping: false,
 
       setMode: (mode) => set({ mode }),
       setWhisperModel: (model) => set({ whisperModel: model, modelReady: false }),
@@ -64,6 +72,8 @@ export const useTranscriptionStore = create<TranscriptionState>()(
       setSegments: (segments) => set({ segments }),
       setIsTranscribing: (isTranscribing) => set({ isTranscribing }),
       setDetectedLanguage: (lang) => set({ detectedLanguage: lang }),
+      setQueueCount: (count) => set({ queueCount: count }),
+      setIsStopping: (isStopping) => set({ isStopping }),
       reset: () => set({
         progress: 0,
         stage: null,
@@ -71,6 +81,8 @@ export const useTranscriptionStore = create<TranscriptionState>()(
         segments: [],
         isTranscribing: false,
         detectedLanguage: null,
+        queueCount: 0,
+        isStopping: false,
       }),
     }),
     {
