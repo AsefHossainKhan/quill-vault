@@ -19,7 +19,7 @@ export function AppShell({ children, recordings = [] }: AppShellProps) {
       <Sidebar recordings={recordings} />
 
       {/* Main content area */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
     </div>

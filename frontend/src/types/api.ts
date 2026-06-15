@@ -98,3 +98,19 @@ export interface Speaker {
   sample_start_seconds: number | null
   sample_end_seconds: number | null
 }
+
+// ── Chat Types ───────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+}
+
+export interface ChatRequest {
+  message: string
+}
+
+export interface ChatResponse {
+  response: string
+}

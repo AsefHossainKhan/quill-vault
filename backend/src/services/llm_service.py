@@ -16,4 +16,6 @@ def get_llm() -> ChatOpenAI:
         base_url=settings.LLM_BASE_URL,
         max_tokens=settings.LLM_MAX_TOKENS,
         temperature=0.3,
+        timeout=120,  # 2 minute timeout for LLM calls
+        max_retries=2,
     )

@@ -7,12 +7,15 @@ import {
   RefreshCw,
   AlertCircle,
   Loader2,
+  MessageSquare,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/Button'
 import { PipelineStatusBar } from '../components/viewer/PipelineStatusBar'
 import { TranscriptTabs } from '../components/viewer/TranscriptTabs'
+import { ChatPanel } from '../components/chat/ChatPanel'
+import { useSettingsStore } from '../stores/settingsStore'
 import {
   getRecording,
   getTranscripts,
@@ -38,6 +41,9 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const chatOpen = useSettingsStore((s) => s.chatOpen)
+  const setChatOpen = useSettingsStore((s) => s.setChatOpen)
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -187,7 +193,9 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full overflow-hidden">
+      {/* ── Main Column ──────────────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col overflow-hidden">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 border-b border-border px-4 py-3">
         <Button
@@ -243,6 +251,16 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
           >
             <RefreshCw className={cn('h-4 w-4', isProcessing && 'animate-spin')} />
           </Button>
+          <Button
+            variant={chatOpen ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setChatOpen(!chatOpen)}
+            className="gap-1.5"
+            title={chatOpen ? 'Close chat' : 'Open chat'}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </Button>
         </div>
       </div>
 
@@ -259,6 +277,15 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
       <TranscriptTabs
         transcripts={transcripts}
         isProcessing={isProcessing}
+      />
+      </div>
+
+      {/* ── Chat Panel ──────────────────────────────────────────────────── */}
+      <ChatPanel
+        recordingId={recordingId}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        availableTranscriptTypes={transcripts.map((t) => t.type)}
       />
     </div>
   )

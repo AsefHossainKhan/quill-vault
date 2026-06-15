@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -17,6 +18,7 @@ class ChatMessageResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    context_types: Optional[list[str]] = None  # e.g. ["raw", "named", "output"]
 
 
 class ChatResponse(BaseModel):
