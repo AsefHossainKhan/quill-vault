@@ -7,6 +7,7 @@ import { AppShell } from './components/layout/AppShell'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import NewRecording from './pages/NewRecording'
+import Settings from './pages/Settings'
 
 /** Wrapper that provides recordings to AppShell for the /record route */
 function RecordRoute() {
@@ -14,6 +15,16 @@ function RecordRoute() {
   return (
     <AppShell recordings={sidebarRecordings}>
       <NewRecording />
+    </AppShell>
+  )
+}
+
+/** Wrapper that provides recordings to AppShell for the /settings route */
+function SettingsRoute() {
+  const { sidebarRecordings } = useRecordings()
+  return (
+    <AppShell recordings={sidebarRecordings}>
+      <Settings />
     </AppShell>
   )
 }
@@ -77,6 +88,16 @@ export default function App() {
             element={
               <RequireAuth>
                 <RecordRoute />
+              </RequireAuth>
+            }
+          />
+
+          {/* Settings page */}
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <SettingsRoute />
               </RequireAuth>
             }
           />
