@@ -14,7 +14,7 @@ from src.models.recording import Recording
 from src.models.template import Template
 from src.schemas.recording import RecordingUpdate
 from src.services import recording_service
-from src.tasks.pipeline import process_recording
+from src.tasks.pipeline import process_recording, process_from_transcript
 
 router = APIRouter()
 settings = get_settings()
@@ -30,8 +30,13 @@ async def create_recording(
     template_id: str | None = Form(None),
     mic_audio: UploadFile = File(...),
     system_audio: UploadFile | None = File(None),
+    transcript: str | None = Form(None),
 ):
-    """Upload audio files and start processing pipeline."""
+    """Upload audio files and start processing pipeline.
+
+    If ``transcript`` JSON is provided (client-side transcription),
+    the backend skips transcription and starts from diarization.
+    """
     recording_id = uuid.uuid4()
     storage_dir = Path(settings.AUDIO_STORAGE_PATH) / str(recording_id)
     storage_dir.mkdir(parents=True, exist_ok=True)
@@ -81,8 +86,11 @@ async def create_recording(
     await db.commit()
     await db.refresh(job)
 
-    # Enqueue Celery task
-    process_recording.delay(str(job.id))
+    # Enqueue Celery task (client-transcript or full server pipeline)
+    if transcript:
+        process_from_transcript.delay(str(job.id), transcript)
+    else:
+        process_recording.delay(str(job.id))
 
     return {"recording_id": str(recording_id), "job_id": str(job.id)}
 

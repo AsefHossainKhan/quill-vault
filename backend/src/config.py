@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # LLM (LangChain / OpenRouter)
     LLM_PROVIDER: str = "openrouter"
     LLM_API_KEY: str = ""
-    LLM_MODEL: str = "meta-llama/llama-3.1-8b-instruct:free"
+    LLM_MODEL: str = "openrouter/free"
     LLM_BASE_URL: str = "https://openrouter.ai/api/v1"
     LLM_MAX_TOKENS: int = 4096
 

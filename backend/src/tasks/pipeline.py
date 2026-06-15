@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.celery_app import celery
 from src.db.session import SyncSessionLocal
+import src.models  # noqa: F401 — ensure all SQLAlchemy models are registered
 from src.models.job import Job
 from src.models.speaker import Speaker
 from src.models.transcript import Transcript

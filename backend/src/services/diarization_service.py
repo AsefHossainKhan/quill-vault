@@ -1,11 +1,17 @@
 """Speaker diarization using pyannote.audio + whisperx alignment."""
 
 import logging
+import warnings
 from functools import lru_cache
 
 import numpy as np
 import torch
-from pyannote.audio import Pipeline
+
+# Suppress the pyannote torchcodec warning — we use librosa for audio loading,
+# so pyannote's built-in torchcodec decoder is never used.
+warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+
+from pyannote.audio import Pipeline  # noqa: E402
 
 from src.config import get_settings
 
@@ -17,7 +23,7 @@ settings = get_settings()
 def _get_diarization_pipeline() -> Pipeline:
     pipeline = Pipeline.from_pretrained(
         settings.DIARIZATION_MODEL,
-        use_auth_token=settings.HUGGINGFACE_TOKEN,
+        token=settings.HUGGINGFACE_TOKEN,
     )
     device = torch.device("cuda" if settings.WHISPER_DEVICE == "cuda" else "cpu")
     pipeline.to(device)
@@ -54,9 +60,12 @@ def diarize_audio(
     waveform = torch.from_numpy(mono).unsqueeze(0)
     diarization = pipeline({"waveform": waveform, "sample_rate": sample_rate})
 
+    # pyannote 4.x returns a DiarizeOutput dataclass; extract the Annotation.
+    annotation = getattr(diarization, "speaker_diarization", diarization)
+
     # Build segment → speaker mapping
     speaker_map: list[tuple[float, float, str]] = []
-    for turn, _, speaker in diarization.itertracks(yield_label=True):
+    for turn, _, speaker in annotation.itertracks(yield_label=True):
         speaker_map.append((turn.start, turn.end, speaker))
 
     # Assign speaker to each transcription segment

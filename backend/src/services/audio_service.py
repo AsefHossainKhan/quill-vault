@@ -1,10 +1,17 @@
 """Audio preprocessing and channel merging."""
 
 import logging
+import warnings
 from pathlib import Path
 
-import librosa
-import noisereduce as nr
+# Suppress the PySoundFile/librosa warning when loading .webm files.
+# soundfile can't decode .webm (Opus); librosa falls back to audioread/ffmpeg
+# which works fine — this is purely cosmetic.
+warnings.filterwarnings("ignore", message=".*PySoundFile failed.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*__audioread_load.*", category=FutureWarning)
+
+import librosa  # noqa: E402
+import noisereduce as nr  # noqa: E402
 import numpy as np
 
 logger = logging.getLogger(__name__)

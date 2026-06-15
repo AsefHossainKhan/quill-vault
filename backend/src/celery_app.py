@@ -1,3 +1,9 @@
+import warnings
+
+# Suppress pyannote.audio torchcodec warning at process start.
+# We use librosa for audio loading, so pyannote's torchcodec decoder is unused.
+warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+
 from celery import Celery
 
 from src.config import get_settings

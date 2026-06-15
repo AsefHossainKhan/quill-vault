@@ -32,3 +32,4 @@ class Job(Base, TimestampMixin):
     transcription_mode: Mapped[str] = mapped_column(String(16), default="server")
 
     recording: Mapped["Recording"] = relationship(back_populates="jobs")  # noqa: F821
+    template: Mapped["Template | None"] = relationship()  # noqa: F821

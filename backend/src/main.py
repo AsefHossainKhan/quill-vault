@@ -1,6 +1,12 @@
 """QuillVault API — FastAPI application factory."""
 
 import logging
+import warnings
+
+# Suppress pyannote.audio torchcodec warning at process start.
+# We use librosa for audio loading, so pyannote's torchcodec decoder is unused.
+warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
