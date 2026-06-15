@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    CELERY_TASK_EVENTS: bool = True  # Send task events for progress visibility
 
     # Auth
     JWT_SECRET: str

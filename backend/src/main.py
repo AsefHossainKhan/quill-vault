@@ -3,9 +3,11 @@
 import logging
 import warnings
 
-# Suppress pyannote.audio torchcodec warning at process start.
-# We use librosa for audio loading, so pyannote's torchcodec decoder is unused.
-warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+# Suppress noisy warnings from ML libraries at process start.
+warnings.filterwarnings("ignore", message=".*torchcodec.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*")
+warnings.filterwarnings("ignore", message=".*degrees of freedom.*")
+warnings.filterwarnings("ignore", message=".*std\(\).*")
 
 from contextlib import asynccontextmanager
 

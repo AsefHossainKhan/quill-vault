@@ -68,6 +68,10 @@ def process_recording(self, job_id: str) -> None:
             raw_segments = transcribe_audio(audio_data, sample_rate, recording.language)
             raw_content = json.dumps(raw_segments, ensure_ascii=False)
 
+            # Update recording duration from preprocessed audio
+            recording.duration_seconds = round(len(audio_data) / sample_rate, 2) if audio_data.ndim == 1 else round(audio_data.shape[1] / sample_rate, 2)
+            db.commit()
+
             db.add(Transcript(
                 recording_id=recording.id,
                 type="raw",
@@ -192,6 +196,11 @@ def process_from_transcript(self, job_id: str, transcript_json: str) -> None:
                 mic_path=recording.mic_audio_path,
                 system_path=recording.system_audio_path,
             )
+
+            # Update recording duration from preprocessed audio
+            recording.duration_seconds = round(len(audio_data) / sample_rate, 2) if audio_data.ndim == 1 else round(audio_data.shape[1] / sample_rate, 2)
+            db.commit()
+
             diarized_segments = diarize_audio(
                 audio_data, sample_rate, raw_segments, recording.language
             )

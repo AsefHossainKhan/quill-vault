@@ -202,7 +202,7 @@ export default function NewRecording() {
         transcriptJson,
         (p) => setUploadProgress(p),
       )
-      navigate(`/recording/${result.recordingId}`, { replace: true })
+      navigate(`/recording/${result.recording_id}`, { replace: true })
     } catch (err) {
       console.error('Upload failed:', err)
       setTranscriptionError(err instanceof Error ? err.message : String(err))

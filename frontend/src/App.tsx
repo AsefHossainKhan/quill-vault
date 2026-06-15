@@ -1,11 +1,22 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import { useTheme } from './hooks/useTheme'
+import { useRecordings } from './hooks/useRecordings'
 import { TitleBar } from './components/layout/TitleBar'
 import { AppShell } from './components/layout/AppShell'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import NewRecording from './pages/NewRecording'
+
+/** Wrapper that provides recordings to AppShell for the /record route */
+function RecordRoute() {
+  const { sidebarRecordings } = useRecordings()
+  return (
+    <AppShell recordings={sidebarRecordings}>
+      <NewRecording />
+    </AppShell>
+  )
+}
 
 /** Redirect unauthenticated users to login */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -65,9 +76,7 @@ export default function App() {
             path="/record"
             element={
               <RequireAuth>
-                <AppShell>
-                  <NewRecording />
-                </AppShell>
+                <RecordRoute />
               </RequireAuth>
             }
           />

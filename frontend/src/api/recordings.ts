@@ -1,8 +1,15 @@
 import { apiClient } from './client'
+import type {
+  Recording,
+  Transcript,
+  TranscriptType,
+  JobStatus,
+  Speaker,
+} from '../types/api'
 
 export interface UploadRecordingResult {
-  jobId: string
-  recordingId: string
+  job_id: string
+  recording_id: string
 }
 
 export async function uploadRecording(
@@ -31,5 +38,54 @@ export async function uploadRecording(
       if (e.total) onProgress(Math.round((e.loaded / e.total) * 100))
     },
   })
+  return data
+}
+
+// ── Recording List ────────────────────────────────────────────────────────────
+
+export async function listRecordings(): Promise<Recording[]> {
+  const { data } = await apiClient.get<Recording[]>('/recordings')
+  return data
+}
+
+// ── Recording Detail ──────────────────────────────────────────────────────────
+
+export async function getRecording(recordingId: string): Promise<Recording> {
+  const { data } = await apiClient.get<Recording>(`/recordings/${recordingId}`)
+  return data
+}
+
+// ── Transcripts ───────────────────────────────────────────────────────────────
+
+export async function getTranscripts(recordingId: string): Promise<Transcript[]> {
+  const { data } = await apiClient.get<Transcript[]>(
+    `/recordings/${recordingId}/transcripts`,
+  )
+  return data
+}
+
+export async function getTranscript(
+  recordingId: string,
+  type: TranscriptType,
+): Promise<Transcript> {
+  const { data } = await apiClient.get<Transcript>(
+    `/recordings/${recordingId}/transcripts/${type}`,
+  )
+  return data
+}
+
+// ── Job Status ────────────────────────────────────────────────────────────────
+
+export async function getJobStatus(jobId: string): Promise<JobStatus> {
+  const { data } = await apiClient.get<JobStatus>(`/jobs/${jobId}/status`)
+  return data
+}
+
+// ── Speakers ──────────────────────────────────────────────────────────────────
+
+export async function getSpeakers(recordingId: string): Promise<Speaker[]> {
+  const { data } = await apiClient.get<Speaker[]>(
+    `/recordings/${recordingId}/speakers`,
+  )
   return data
 }

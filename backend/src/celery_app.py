@@ -1,8 +1,10 @@
 import warnings
 
-# Suppress pyannote.audio torchcodec warning at process start.
-# We use librosa for audio loading, so pyannote's torchcodec decoder is unused.
-warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+# Suppress noisy warnings from ML libraries at process start.
+warnings.filterwarnings("ignore", message=".*torchcodec.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*")
+warnings.filterwarnings("ignore", message=".*degrees of freedom.*")
+warnings.filterwarnings("ignore", message=".*std\(\).*")
 
 from celery import Celery
 
@@ -26,4 +28,6 @@ celery.conf.update(
     task_acks_late=True,  # Ack only after task completes (crash safety)
     worker_prefetch_multiplier=1,  # One task per worker (heavy ML tasks)
     task_track_started=True,
+    worker_send_task_events=True,
+    task_send_sent_event=True,
 )

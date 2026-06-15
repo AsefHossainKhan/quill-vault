@@ -31,9 +31,12 @@ async def list_transcripts(
     return [
         {
             "id": str(t.id),
+            "recording_id": str(recording_id),
             "type": t.type,
             "content": t.content,
             "template_id": str(t.template_id) if t.template_id else None,
+            "created_at": t.created_at.isoformat() if hasattr(t, 'created_at') and t.created_at else None,
+            "updated_at": t.updated_at.isoformat() if hasattr(t, 'updated_at') and t.updated_at else None,
         }
         for t in transcripts
     ]
@@ -74,6 +77,10 @@ async def get_transcript(
 
     return {
         "id": str(transcript.id),
+        "recording_id": str(recording_id),
         "type": transcript.type,
-        "content": content,
+        "content": content if isinstance(content, str) else json.dumps(content),
+        "template_id": str(transcript.template_id) if transcript.template_id else None,
+        "created_at": transcript.created_at.isoformat() if hasattr(transcript, 'created_at') and transcript.created_at else None,
+        "updated_at": transcript.updated_at.isoformat() if hasattr(transcript, 'updated_at') and transcript.updated_at else None,
     }

@@ -18,7 +18,7 @@ async def get_user_recordings(
     user_id: UUID,
     offset: int = 0,
     limit: int = 20,
-) -> list[Recording]:
+) -> list[dict]:
     result = await db.execute(
         select(Recording)
         .where(Recording.user_id == user_id)
@@ -26,7 +26,38 @@ async def get_user_recordings(
         .offset(offset)
         .limit(limit)
     )
-    return list(result.scalars().all())
+    recordings = list(result.scalars().all())
+
+    # Fetch latest job for each recording to determine active_job_id
+    active_job_ids: dict[UUID, UUID | None] = {}
+    if recordings:
+        rec_ids = [r.id for r in recordings]
+        jobs_result = await db.execute(
+            select(Job)
+            .where(Job.recording_id.in_(rec_ids))
+            .order_by(Job.created_at.desc())
+        )
+        seen: set[UUID] = set()
+        for job in jobs_result.scalars().all():
+            if job.recording_id not in seen:
+                seen.add(job.recording_id)
+                active_job_ids[job.recording_id] = (
+                    job.id if job.stage != "done" else None
+                )
+
+    return [
+        {
+            "id": str(r.id),
+            "name": r.name,
+            "language": r.language,
+            "duration_seconds": r.duration_seconds,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "active_job_id": (
+                str(active_job_ids[r.id]) if r.id in active_job_ids and active_job_ids[r.id] is not None else None
+            ),
+        }
+        for r in recordings
+    ]
 
 
 async def get_recording_with_job(

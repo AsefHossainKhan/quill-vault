@@ -9,7 +9,9 @@ import torch
 
 # Suppress the pyannote torchcodec warning — we use librosa for audio loading,
 # so pyannote's built-in torchcodec decoder is never used.
-warnings.filterwarnings("ignore", message=".*torchcodec is not installed.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*torchcodec.*")
+warnings.filterwarnings("ignore", message=".*degrees of freedom.*")
+warnings.filterwarnings("ignore", message=".*std\\(\\).*")
 
 from pyannote.audio import Pipeline  # noqa: E402
 

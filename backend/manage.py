@@ -163,6 +163,8 @@ def _start_api() -> bool:
 
     _info("Starting FastAPI server...")
     log_file = open(LOG_DIR / "api.log", "w")
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "uvicorn", "src.main:app",
@@ -171,6 +173,7 @@ def _start_api() -> bool:
         cwd=str(BACKEND_DIR),
         stdout=log_file,
         stderr=subprocess.STDOUT,
+        env=env,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
     )
     _save_pid("api", proc.pid)
@@ -199,17 +202,21 @@ def _start_celery() -> bool:
 
     _info("Starting Celery worker...")
     log_file = open(LOG_DIR / "celery.log", "w")
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "celery",
             "-A", "src.celery_app", "worker",
             "--loglevel=info",
+            "-E",  # Send task events for progress visibility
             f"--concurrency={CELERY_CONCURRENCY}",
-            f"-P", CELERY_POOL,
+            "-P", CELERY_POOL,
         ],
         cwd=str(BACKEND_DIR),
         stdout=log_file,
         stderr=subprocess.STDOUT,
+        env=env,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
     )
     _save_pid("celery", proc.pid)
