@@ -1,0 +1,55 @@
+# ── Git ───────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+*.egg
+.mypy_cache
+.ruff_cache
+.pytest_cache
+htmlcov
+.coverage
+
+# ── Virtual environments ─────────────────────────────────────
+.venv
+venv
+env
+
+# ── IDE ──────────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+
+# ── Docker ───────────────────────────────────────────────────
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# ── Logs & PIDs ──────────────────────────────────────────────
+logs/
+.pids/
+*.log
+
+# ── Environment files ────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.docker
+
+# ── Data (mounted as volumes in Docker) ──────────────────────
+data/audio/
+data/test-audio/
+
+# ── OS files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

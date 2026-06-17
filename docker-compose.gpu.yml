@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────
+# QuillVault — Docker Compose GPU Override
+# ─────────────────────────────────────────────────────────────
+# Merges with docker-compose.yml to enable NVIDIA GPU support.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+#
+# Prerequisites:
+#   - NVIDIA driver installed on host
+#   - nvidia-container-toolkit installed
+#   - Docker Desktop with GPU support (or native Linux Docker)
+# ─────────────────────────────────────────────────────────────
+
+services:
+  # ── Celery Worker — GPU Mode ───────────────────────────────
+  # The Celery worker does all the heavy ML lifting (whisper,
+  # pyannote, etc.), so it NEEDS the GPU.
+  celery-worker:
+    environment:
+      WHISPER_DEVICE: cuda
+      # float16 is optimal for 1080ti (Pascal, compute 6.1)
+      # Use int8 for lower VRAM usage if needed
+      WHISPER_COMPUTE_TYPE: float16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ── FastAPI Backend — GPU Mode (optional) ──────────────────
+  # The API server doesn't do ML inference directly (that's the
+  # Celery worker), but if you want GPU available for ad-hoc
+  # model loading or future features, uncomment below.
+  #
+  # backend-api:
+  #   environment:
+  #     WHISPER_DEVICE: cuda
+  #     WHISPER_COMPUTE_TYPE: float16
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
