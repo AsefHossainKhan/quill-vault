@@ -82,6 +82,10 @@ def process_recording(self, job_id: str) -> None:
             _update_job(db, job, "transcribing", 25)
 
             # ── Stage 2: Diarization + Alignment ───────────────────
+            # Diarization runs on the WHOLE audio (not per-chunk).
+            # pyannote's speaker turns are the PRIMARY segmentation;
+            # Whisper text is mapped onto them by time overlap.
+            # Output segments can differ in count from raw transcription.
             _update_job(db, job, "diarizing", 30)
             diarized_segments = diarize_audio(
                 audio_data, sample_rate, raw_segments, recording.language
@@ -192,6 +196,10 @@ def process_from_transcript(self, job_id: str, transcript_json: str) -> None:
             _update_job(db, job, "diarizing", 25)
 
             # ── Stage 2: Diarization + Alignment ───────────────────
+            # Diarization runs on the WHOLE audio (not per-chunk).
+            # pyannote's speaker turns are the PRIMARY segmentation;
+            # client-side Whisper text is mapped onto them by time overlap.
+            # Output segments can differ in count from client transcription.
             audio_data, sample_rate = preprocess_and_merge(
                 mic_path=recording.mic_audio_path,
                 system_path=recording.system_audio_path,
