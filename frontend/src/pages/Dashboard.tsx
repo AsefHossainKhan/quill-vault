@@ -19,7 +19,7 @@ export default function Dashboard() {
       ) : (
         <EmptyState
           onStartRecording={() => navigate('/record')}
-          onUploadFile={() => navigate('/record')}
+          onUploadFile={() => navigate('/upload')}
         />
       )}
     </AppShell>

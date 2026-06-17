@@ -15,6 +15,7 @@ import { SystemAudioSelector } from '../components/recording/SystemAudioSelector
 import { TranscriptionModeSelector } from '../components/recording/TranscriptionModeSelector'
 import { TranscriptionPanel } from '../components/recording/TranscriptionPanel'
 import { RecordingControls } from '../components/recording/RecordingControls'
+import { TemplateSelector } from '../components/recording/TemplateSelector'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 
@@ -56,6 +57,8 @@ export default function NewRecording() {
   const micDeviceId = useRecordingStore((s) => s.micDeviceId)
   const language = useRecordingStore((s) => s.language)
   const setLanguage = useRecordingStore((s) => s.setLanguage)
+  const templateId = useRecordingStore((s) => s.templateId)
+  const setTemplateId = useRecordingStore((s) => s.setTemplateId)
 
   const transcriptionMode = useTranscriptionStore((s) => s.mode)
   const whisperModel = useTranscriptionStore((s) => s.whisperModel)
@@ -203,6 +206,7 @@ export default function NewRecording() {
         language,
         transcriptJson,
         (p) => setUploadProgress(p),
+        templateId,
       )
       navigate(`/recording/${result.recording_id}`, { replace: true })
     } catch (err) {
@@ -298,6 +302,18 @@ export default function NewRecording() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Template selector */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            Template
+          </label>
+          <TemplateSelector
+            value={templateId}
+            onChange={setTemplateId}
+            disabled={isActive || isUploading}
+          />
         </div>
 
         {/* Duration + Controls */}

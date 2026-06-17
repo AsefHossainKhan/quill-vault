@@ -2,11 +2,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   FolderOpen,
   Settings,
-  User,
+  FileText,
   HelpCircle,
   LifeBuoy,
   Search,
   Plus,
+  Upload,
   LogOut,
   Sun,
   Moon,
@@ -32,8 +33,8 @@ interface SidebarProps {
 
 const navItems = [
   { label: 'Library', icon: FolderOpen, path: '/' },
+  { label: 'Templates', icon: FileText, path: '/templates' },
   { label: 'Settings', icon: Settings, path: '/settings' },
-  { label: 'Profile', icon: User, path: '/profile' },
 ]
 
 const bottomItems = [
@@ -67,8 +68,11 @@ export function Sidebar({ recordings = [] }: SidebarProps) {
         minWidth={180}
         maxWidth={400}
       />
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-5 pb-4">
+      {/* Header — clickable logo → home */}
+      <button
+        onClick={() => navigate('/')}
+        className="flex w-full items-center gap-3 px-4 pt-5 pb-4 text-left hover:bg-accent/50 transition-colors"
+      >
         <img
           src="/quillvault-logo.png"
           alt="QuillVault"
@@ -80,16 +84,24 @@ export function Sidebar({ recordings = [] }: SidebarProps) {
           </h1>
           <p className="text-xs text-muted-foreground">Transcription Hub</p>
         </div>
-      </div>
+      </button>
 
-      {/* New Recording button */}
-      <div className="px-3 pb-3">
+      {/* Action buttons */}
+      <div className="px-3 pb-3 space-y-1.5">
         <Button
           onClick={() => navigate('/record')}
           className="w-full justify-start gap-2"
         >
           <Plus className="h-4 w-4" />
           New Recording
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/upload')}
+          className="w-full justify-start gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Upload Audio
         </Button>
       </div>
 

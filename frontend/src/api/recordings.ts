@@ -20,6 +20,7 @@ export async function uploadRecording(
   language: string,
   transcriptJson: string | null,
   onProgress: (percent: number) => void,
+  templateId?: string | null,
 ): Promise<UploadRecordingResult> {
   const form = new FormData()
   form.append('name', name)
@@ -31,6 +32,9 @@ export async function uploadRecording(
   // If client did local transcription, send the raw transcript JSON
   if (transcriptJson) {
     form.append('transcript', transcriptJson)
+  }
+  if (templateId) {
+    form.append('template_id', templateId)
   }
 
   const { data } = await apiClient.post<UploadRecordingResult>('/recordings', form, {

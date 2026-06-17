@@ -8,6 +8,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import NewRecording from './pages/NewRecording'
+import UploadAudio from './pages/UploadAudio'
+import Templates from './pages/Templates'
 import Settings from './pages/Settings'
 
 /** Wrapper that provides recordings to AppShell for the /record route */
@@ -16,6 +18,26 @@ function RecordRoute() {
   return (
     <AppShell recordings={sidebarRecordings}>
       <NewRecording />
+    </AppShell>
+  )
+}
+
+/** Wrapper that provides recordings to AppShell for the /upload route */
+function UploadRoute() {
+  const { sidebarRecordings } = useRecordings()
+  return (
+    <AppShell recordings={sidebarRecordings}>
+      <UploadAudio />
+    </AppShell>
+  )
+}
+
+/** Wrapper that provides recordings to AppShell for the /templates route */
+function TemplatesRoute() {
+  const { sidebarRecordings } = useRecordings()
+  return (
+    <AppShell recordings={sidebarRecordings}>
+      <Templates />
     </AppShell>
   )
 }
@@ -97,6 +119,26 @@ export default function App() {
             element={
               <RequireAuth>
                 <RecordRoute />
+              </RequireAuth>
+            }
+          />
+
+          {/* Upload audio file */}
+          <Route
+            path="/upload"
+            element={
+              <RequireAuth>
+                <UploadRoute />
+              </RequireAuth>
+            }
+          />
+
+          {/* Templates manager */}
+          <Route
+            path="/templates"
+            element={
+              <RequireAuth>
+                <TemplatesRoute />
               </RequireAuth>
             }
           />

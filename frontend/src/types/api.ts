@@ -106,6 +106,7 @@ export interface Template {
   name: string
   icon: string
   category: string
+  system_prompt: string
   is_builtin: boolean
 }
 
