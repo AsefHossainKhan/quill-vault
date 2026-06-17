@@ -5,6 +5,7 @@ import { useRecordings } from './hooks/useRecordings'
 import { TitleBar } from './components/layout/TitleBar'
 import { AppShell } from './components/layout/AppShell'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import NewRecording from './pages/NewRecording'
 import Settings from './pages/Settings'
@@ -58,6 +59,14 @@ export default function App() {
             element={
               <GuestOnly>
                 <Login />
+              </GuestOnly>
+            }
+          />
+          <Route
+            path="/auth/register"
+            element={
+              <GuestOnly>
+                <Register />
               </GuestOnly>
             }
           />

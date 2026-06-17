@@ -55,6 +55,16 @@ async def generate_output_endpoint(
     # Generate output
     output_content = generate_output(named_segments, template.system_prompt)
 
+    # Delete any existing output transcripts for this recording
+    from sqlalchemy import delete
+
+    await db.execute(
+        delete(Transcript).where(
+            Transcript.recording_id == recording_id,
+            Transcript.type == "output",
+        )
+    )
+
     # Save new output transcript
     output_transcript = Transcript(
         recording_id=recording_id,

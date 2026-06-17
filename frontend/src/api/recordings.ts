@@ -5,6 +5,7 @@ import type {
   TranscriptType,
   JobStatus,
   Speaker,
+  Template,
 } from '../types/api'
 
 export interface UploadRecordingResult {
@@ -111,6 +112,34 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
 export async function getSpeakers(recordingId: string): Promise<Speaker[]> {
   const { data } = await apiClient.get<Speaker[]>(
     `/recordings/${recordingId}/speakers`,
+  )
+  return data
+}
+
+export async function updateSpeakers(
+  recordingId: string,
+  speakers: { label: string; name: string | null }[],
+): Promise<void> {
+  await apiClient.put(`/recordings/${recordingId}/speakers`, { speakers })
+}
+
+// ── Templates ────────────────────────────────────────────────────────────────
+
+export async function getTemplates(): Promise<Template[]> {
+  const { data } = await apiClient.get<Template[]>('/templates')
+  return data
+}
+
+// ── Output Generation ────────────────────────────────────────────────────────
+
+export async function generateOutput(
+  recordingId: string,
+  templateId: string,
+): Promise<{ content: string; template_id: string }> {
+  const { data } = await apiClient.post(
+    `/recordings/${recordingId}/generate`,
+    null,
+    { params: { template_id: templateId } },
   )
   return data
 }

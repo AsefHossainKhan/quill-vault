@@ -19,7 +19,9 @@ const TABS: { id: TranscriptType; label: string; description: string }[] = [
 export function TranscriptTabs({ transcripts, isProcessing, onTabChange }: TranscriptTabsProps) {
   const [activeTab, setActiveTab] = useState<TranscriptType>('raw')
 
-  const activeTranscript = transcripts.find((t) => t.type === activeTab)
+  const activeTranscript = transcripts
+    .filter((t) => t.type === activeTab)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
 
   // Build a set of available types
   const availableTypes = new Set(transcripts.map((t) => t.type))

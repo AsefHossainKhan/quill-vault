@@ -8,6 +8,8 @@ import {
   AlertCircle,
   Loader2,
   MessageSquare,
+  Users,
+  Sparkles,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../lib/utils'
@@ -16,6 +18,8 @@ import { PipelineStatusBar } from '../components/viewer/PipelineStatusBar'
 import { TranscriptTabs } from '../components/viewer/TranscriptTabs'
 import { ActionsMenu } from '../components/viewer/ActionsMenu'
 import { ChatPanel } from '../components/chat/ChatPanel'
+import { SpeakerEditorDialog } from '../components/viewer/SpeakerEditorDialog'
+import { TemplateSelectorDialog } from '../components/viewer/TemplateSelectorDialog'
 import { useSettingsStore } from '../stores/settingsStore'
 import {
   getRecording,
@@ -51,6 +55,8 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
 
   const chatOpen = useSettingsStore((s) => s.chatOpen)
   const setChatOpen = useSettingsStore((s) => s.setChatOpen)
+  const [speakerEditorOpen, setSpeakerEditorOpen] = useState(false)
+  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false)
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -301,6 +307,26 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
             <MessageSquare className="h-4 w-4" />
             Chat
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSpeakerEditorOpen(true)}
+            className="gap-1.5"
+            title="Edit speaker names"
+          >
+            <Users className="h-4 w-4" />
+            Speakers
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTemplateSelectorOpen(true)}
+            className="gap-1.5"
+            title="Re-generate output with a template"
+          >
+            <Sparkles className="h-4 w-4" />
+            Regenerate
+          </Button>
           <ActionsMenu
             recordingName={recording?.name || 'Untitled Recording'}
             transcripts={transcripts}
@@ -336,6 +362,28 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
         availableTranscriptTypes={transcripts.map((t) => t.type)}
+      />
+
+      {/* ── Speaker Editor Dialog ───────────────────────────────────────── */}
+      <SpeakerEditorDialog
+        recordingId={recordingId}
+        isOpen={speakerEditorOpen}
+        onClose={() => setSpeakerEditorOpen(false)}
+        onSaved={() => {
+          // Refresh transcripts after speaker names are updated
+          fetchTranscripts()
+        }}
+      />
+
+      {/* ── Template Selector Dialog ───────────────────────────────────── */}
+      <TemplateSelectorDialog
+        recordingId={recordingId}
+        isOpen={templateSelectorOpen}
+        onClose={() => setTemplateSelectorOpen(false)}
+        onGenerated={() => {
+          // Refresh transcripts after output is regenerated
+          fetchTranscripts()
+        }}
       />
     </div>
   )

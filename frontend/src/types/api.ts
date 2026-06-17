@@ -99,6 +99,16 @@ export interface Speaker {
   sample_end_seconds: number | null
 }
 
+// ── Template Types ───────────────────────────────────────────────────────────
+
+export interface Template {
+  id: string
+  name: string
+  icon: string
+  category: string
+  is_builtin: boolean
+}
+
 // ── Chat Types ───────────────────────────────────────────────────────────────
 
 export interface ChatMessage {

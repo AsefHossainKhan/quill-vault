@@ -1,9 +1,15 @@
 import { apiClient } from './client'
-import type { LoginRequest, LoginResponse, User } from '../types/api'
+import type { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, User } from '../types/api'
 
 /** Authenticate user with email/username and password */
 export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>('/auth/login', payload)
+  return data
+}
+
+/** Register a new user account */
+export async function registerUser(payload: RegisterRequest): Promise<RegisterResponse> {
+  const { data } = await apiClient.post<RegisterResponse>('/auth/register', payload)
   return data
 }
 
