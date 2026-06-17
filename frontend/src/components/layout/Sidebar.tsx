@@ -14,8 +14,10 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Button } from '../ui/Button'
+import { ResizeHandle } from '../ui/ResizeHandle'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuthStore } from '../../stores/authStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 interface RecordingItem {
   id: string
@@ -44,9 +46,27 @@ export function Sidebar({ recordings = [] }: SidebarProps) {
   const location = useLocation()
   const logout = useAuthStore((s) => s.logout)
   const { theme, cycleTheme } = useTheme()
+  const sidebarWidth = useSettingsStore((s) => s.sidebarWidth)
+  const saveSettings = useSettingsStore((s) => s.save)
+
+  // Extract active recording ID from URL (/recording/:id)
+  const activeRecordingId = location.pathname.startsWith('/recording/')
+    ? location.pathname.split('/')[2]
+    : null
 
   return (
-    <aside className="flex h-full w-[240px] flex-col border-r border-border bg-card">
+    <aside
+      className="relative flex h-full flex-col border-r border-border bg-card"
+      style={{ width: sidebarWidth }}
+    >
+      {/* Resize handle — right edge */}
+      <ResizeHandle
+        side="right"
+        width={sidebarWidth}
+        onResize={(w) => saveSettings({ sidebarWidth: w })}
+        minWidth={180}
+        maxWidth={400}
+      />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-4">
         <img
@@ -115,20 +135,31 @@ export function Sidebar({ recordings = [] }: SidebarProps) {
           Recent Recordings
         </h3>
         <div className="space-y-0.5">
-          {recordings.map((rec) => (
-            <button
-              key={rec.id}
-              onClick={() => navigate(`/recording/${rec.id}`)}
-              className="flex w-full flex-col rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent group"
-            >
-              <span className="text-sm font-medium text-card-foreground truncate group-hover:text-accent-foreground">
-                {rec.name}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {rec.date} &middot; {rec.duration}
-              </span>
-            </button>
-          ))}
+          {recordings.map((rec) => {
+            const isActive = rec.id === activeRecordingId
+            return (
+              <button
+                key={rec.id}
+                onClick={() => navigate(`/recording/${rec.id}`)}
+                className={cn(
+                  'flex w-full flex-col rounded-lg px-3 py-2 text-left transition-colors group min-w-0 overflow-hidden',
+                  isActive
+                    ? 'bg-accent border-l-2 border-primary'
+                    : 'hover:bg-accent',
+                )}
+              >
+                <span className={cn(
+                  'text-sm font-medium truncate block',
+                  isActive ? 'text-foreground' : 'text-card-foreground group-hover:text-accent-foreground',
+                )}>
+                  {rec.name}
+                </span>
+                <span className="text-xs text-muted-foreground truncate block">
+                  {rec.date} &middot; {rec.duration}
+                </span>
+              </button>
+            )
+          })}
           {recordings.length === 0 && (
             <p className="px-1 py-2 text-xs text-muted-foreground">
               No recordings yet

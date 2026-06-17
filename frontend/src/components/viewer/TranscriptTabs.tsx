@@ -6,6 +6,7 @@ import type { Transcript, TranscriptType } from '../../types/api'
 interface TranscriptTabsProps {
   transcripts: Transcript[]
   isProcessing: boolean
+  onTabChange?: (tab: TranscriptType) => void
 }
 
 const TABS: { id: TranscriptType; label: string; description: string }[] = [
@@ -15,7 +16,7 @@ const TABS: { id: TranscriptType; label: string; description: string }[] = [
   { id: 'output', label: 'Output', description: 'Formatted meeting notes' },
 ]
 
-export function TranscriptTabs({ transcripts, isProcessing }: TranscriptTabsProps) {
+export function TranscriptTabs({ transcripts, isProcessing, onTabChange }: TranscriptTabsProps) {
   const [activeTab, setActiveTab] = useState<TranscriptType>('raw')
 
   const activeTranscript = transcripts.find((t) => t.type === activeTab)
@@ -34,7 +35,12 @@ export function TranscriptTabs({ transcripts, isProcessing }: TranscriptTabsProp
           return (
             <button
               key={tab.id}
-              onClick={() => isAvailable && setActiveTab(tab.id)}
+              onClick={() => {
+                if (isAvailable) {
+                  setActiveTab(tab.id)
+                  onTabChange?.(tab.id)
+                }
+              }}
               disabled={!isAvailable}
               className={cn(
                 'relative px-4 py-3 text-sm font-medium transition-colors',

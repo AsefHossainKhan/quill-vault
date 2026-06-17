@@ -6,6 +6,8 @@ interface Settings {
   theme: Theme
   backendUrl: string
   chatOpen: boolean
+  sidebarWidth: number
+  chatWidth: number
 }
 
 interface SettingsState extends Settings {
@@ -19,6 +21,8 @@ export const useSettingsStore = create<SettingsState>()(
       theme: 'system',
       backendUrl: 'http://localhost:8000',
       chatOpen: false,
+      sidebarWidth: 240,
+      chatWidth: 320,
 
       save: (partial) => set({ ...get(), ...partial }),
       setChatOpen: (open) => set({ chatOpen: open }),

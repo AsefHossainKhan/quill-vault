@@ -147,3 +147,20 @@ async def delete_recording(
     deleted = await recording_service.delete_recording(db, recording_id, current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.post("/{recording_id}/auto-name")
+async def auto_name_recording(
+    recording_id: uuid.UUID,
+    db: DB,
+    current_user: CurrentUser,
+):
+    name = await recording_service.auto_name_recording(
+        db, recording_id, current_user.id
+    )
+    if name is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not generate a name. Ensure the recording has a transcript.",
+        )
+    return {"name": name}

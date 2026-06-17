@@ -14,18 +14,23 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/Button'
 import { PipelineStatusBar } from '../components/viewer/PipelineStatusBar'
 import { TranscriptTabs } from '../components/viewer/TranscriptTabs'
+import { ActionsMenu } from '../components/viewer/ActionsMenu'
 import { ChatPanel } from '../components/chat/ChatPanel'
 import { useSettingsStore } from '../stores/settingsStore'
 import {
   getRecording,
   getTranscripts,
   getJobStatus,
+  updateRecording,
+  deleteRecording,
+  autoNameRecording,
 } from '../api/recordings'
 import type {
   Recording,
   Transcript,
   JobStatus,
   PipelineStage,
+  TranscriptType,
 } from '../types/api'
 
 interface DocumentViewerProps {
@@ -41,6 +46,8 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [autoNaming, setAutoNaming] = useState(false)
+  const [activeTranscriptType, setActiveTranscriptType] = useState<TranscriptType>('raw')
 
   const chatOpen = useSettingsStore((s) => s.chatOpen)
   const setChatOpen = useSettingsStore((s) => s.setChatOpen)
@@ -158,6 +165,39 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
 
   const pipelineStage = jobStatus?.stage as PipelineStage | null
 
+  // ── Actions handlers ──────────────────────────────────────────────────────
+
+  async function handleRename(newName: string) {
+    if (!recording) return
+    try {
+      await updateRecording(recordingId, newName)
+      setRecording({ ...recording, name: newName })
+    } catch {
+      // Silently fail — could add toast later
+    }
+  }
+
+  async function handleAutoName() {
+    setAutoNaming(true)
+    try {
+      const { name } = await autoNameRecording(recordingId)
+      if (recording) setRecording({ ...recording, name })
+    } catch {
+      // Silently fail
+    } finally {
+      setAutoNaming(false)
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deleteRecording(recordingId)
+      navigate('/')
+    } catch {
+      // Silently fail
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -261,6 +301,15 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
             <MessageSquare className="h-4 w-4" />
             Chat
           </Button>
+          <ActionsMenu
+            recordingName={recording?.name || 'Untitled Recording'}
+            transcripts={transcripts}
+            activeTranscriptType={activeTranscriptType}
+            onRename={handleRename}
+            onAutoName={handleAutoName}
+            onDelete={handleDelete}
+            autoNaming={autoNaming}
+          />
         </div>
       </div>
 
@@ -277,6 +326,7 @@ export function DocumentViewer({ recordingId }: DocumentViewerProps) {
       <TranscriptTabs
         transcripts={transcripts}
         isProcessing={isProcessing}
+        onTabChange={setActiveTranscriptType}
       />
       </div>
 

@@ -3,6 +3,8 @@ import { X, Loader2, MessageSquare, RotateCcw, ChevronDown, Check } from 'lucide
 import { cn } from '../../lib/utils'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
+import { ResizeHandle } from '../ui/ResizeHandle'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { getChatMessages, sendChatMessage, resetChat } from '../../api/chat'
 import type { ChatMessage as ChatMessageType, TranscriptType } from '../../types/api'
 
@@ -159,8 +161,22 @@ export function ChatPanel({
     availableTranscriptTypes.includes(o.id),
   )
 
+  const chatWidth = useSettingsStore((s) => s.chatWidth)
+  const saveSettings = useSettingsStore((s) => s.save)
+
   return (
-    <div className="flex h-full w-80 flex-col border-l border-border bg-card">
+    <div
+      className="relative flex h-full flex-col border-l border-border bg-card"
+      style={{ width: chatWidth }}
+    >
+      {/* Resize handle — left edge */}
+      <ResizeHandle
+        side="left"
+        width={chatWidth}
+        onResize={(w) => saveSettings({ chatWidth: w })}
+        minWidth={260}
+        maxWidth={500}
+      />
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">

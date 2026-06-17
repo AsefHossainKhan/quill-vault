@@ -55,6 +55,31 @@ export async function getRecording(recordingId: string): Promise<Recording> {
   return data
 }
 
+// ── Recording Update ──────────────────────────────────────────────────────────
+
+export async function updateRecording(
+  recordingId: string,
+  name: string,
+): Promise<{ id: string; name: string }> {
+  const { data } = await apiClient.patch(`/recordings/${recordingId}`, { name })
+  return data
+}
+
+// ── Recording Delete ──────────────────────────────────────────────────────────
+
+export async function deleteRecording(recordingId: string): Promise<void> {
+  await apiClient.delete(`/recordings/${recordingId}`)
+}
+
+// ── Auto-Name ─────────────────────────────────────────────────────────────────
+
+export async function autoNameRecording(
+  recordingId: string,
+): Promise<{ name: string }> {
+  const { data } = await apiClient.post(`/recordings/${recordingId}/auto-name`)
+  return data
+}
+
 // ── Transcripts ───────────────────────────────────────────────────────────────
 
 export async function getTranscripts(recordingId: string): Promise<Transcript[]> {
