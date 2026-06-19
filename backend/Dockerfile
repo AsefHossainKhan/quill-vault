@@ -33,20 +33,38 @@ ENV PYTHONUNBUFFERED=1 \
 RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # ── PyTorch with CUDA 11.8 support ──────────────────────────
-# Separate layer — this is ~2.5 GB and rarely changes.
+# Using 2.3.1 — the latest version that supports compute capability 6.1 (Pascal / 1080 Ti).
+# PyTorch 2.4+ dropped CC < 7.5.
 RUN python3 -m pip install \
-    torch==2.4.0+cu118 \
-    torchaudio==2.4.0+cu118 \
+    torch==2.3.1+cu118 \
+    torchaudio==2.3.1+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# ── Copy application source ─────────────────────────────────
+# ── CUDA 12 cublas for ctranslate2 (faster-whisper engine) ──
+# ctranslate2 is compiled against CUDA 12 but our base image is CUDA 11.8.
+# Install ONLY libcublas.so.12 (NOT the pip nvidia packages, which bring
+# in CUDA 12 cuDNN that conflicts with our CUDA 11.8 cuDNN).
+# The NVIDIA repo is already configured in the CUDA 11.8 base image.
+RUN apt-get update && apt-get install -y --no-install-recommends libcublas-12-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+
+# ── Install Python dependencies ─────────────────────────────
+# Copy pyproject.toml + constraints FIRST for layer caching.
+# The constraints file pins torch==2.3.1 so pip does NOT upgrade
+# it when resolving torch>=2.0.0 from pyproject.toml.
+COPY pyproject.toml constraints-torch.txt ./
+RUN mkdir -p src && touch src/__init__.py && \
+    python3 -m pip install -e . -c constraints-torch.txt
+
+# ── Copy application source (LAST — most frequently changed) ──
+# Code edits only invalidate THIS layer and what's below.
+# All expensive layers above are cached.
 COPY . /app
 
-# ── Install project dependencies from pyproject.toml ─────────
-# pip sees torch==2.4.0+cu118 as satisfying torch>=2.0.0,
-# so it will NOT overwrite our CUDA torch with the CPU version.
-RUN python3 -m pip install .
+# ── Re-link package with actual source ───────────────────────
+RUN python3 -m pip install -e . --no-deps
 
 # ── Data directories ────────────────────────────────────────
 RUN mkdir -p /app/data/audio /app/data/test-audio /app/logs

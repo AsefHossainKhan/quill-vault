@@ -3,13 +3,12 @@
 # QuillVault — Build & Push to Docker Hub
 # ─────────────────────────────────────────────────────────────
 # Usage:
-#   ./docker-build.sh                          # build only
-#   ./docker-build.sh push                     # build + push
-#   ./docker-build.sh push --no-cache          # build (no cache) + push
+#   cd backend && ./docker-build.sh                # build only
+#   cd backend && ./docker-build.sh push           # build + push
+#   cd backend && ./docker-build.sh push --no-cache
 #
 # Set your Docker Hub username:
 #   export DOCKER_USER=yourusername
-#   ./docker-build.sh push
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -36,7 +35,7 @@ echo "╚═══════════════════════�
 # ── Build ─────────────────────────────────────────────────────
 echo ""
 echo "🔨 Building image..."
-docker build ${BUILD_ARGS} -t "${FULL_IMAGE}" -t "${DOCKER_USER}/${IMAGE_NAME}:$(date +%Y%m%d)" ./backend
+docker build ${BUILD_ARGS} -t "${FULL_IMAGE}" -t "${DOCKER_USER}/${IMAGE_NAME}:$(date +%Y%m%d)" .
 echo "✅ Build complete: ${FULL_IMAGE}"
 
 # ── Push ──────────────────────────────────────────────────────

@@ -53,7 +53,7 @@ def transcribe_audio(
         language=language,
         beam_size=5,
         vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500, "threshold": 0.35},
+        vad_parameters={"min_silence_duration_ms": 500},
     )
 
     result = []

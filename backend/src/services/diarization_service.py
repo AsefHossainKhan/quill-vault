@@ -23,13 +23,24 @@ settings = get_settings()
 
 @lru_cache(maxsize=1)
 def _get_diarization_pipeline() -> Pipeline:
-    pipeline = Pipeline.from_pretrained(
-        settings.DIARIZATION_MODEL,
-        token=settings.HUGGINGFACE_TOKEN,
-    )
-    device = torch.device("cuda" if settings.WHISPER_DEVICE == "cuda" else "cpu")
-    pipeline.to(device)
-    logger.info("Diarization pipeline loaded")
+    # pyannote.audio 3.1+ uses 'token'; older versions use 'use_auth_token'
+    try:
+        pipeline = Pipeline.from_pretrained(
+            settings.DIARIZATION_MODEL,
+            token=settings.HUGGINGFACE_TOKEN,
+        )
+    except TypeError:
+        pipeline = Pipeline.from_pretrained(
+            settings.DIARIZATION_MODEL,
+            use_auth_token=settings.HUGGINGFACE_TOKEN,
+        )
+    # Diarization uses PyTorch RNNs which need cuDNN. When ctranslate2
+    # (faster-whisper) pulls in CUDA 12 cublas, it can conflict with
+    # PyTorch's CUDA 11.8 cuDNN. Run diarization on CPU to avoid this.
+    # It's fast enough (a few seconds per recording) and avoids all
+    # CUDA version mismatch issues.
+    pipeline.to(torch.device("cpu"))
+    logger.info("Diarization pipeline loaded (CPU)")
     return pipeline
 
 

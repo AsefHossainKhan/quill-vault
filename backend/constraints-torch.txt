@@ -1,0 +1,5 @@
+# Pin torch to 2.3.1 for Pascal GPU (1080 Ti, CC 6.1) compatibility.
+# Used as a pip constraint file during Docker builds to prevent
+# pyproject.toml's "torch>=2.0.0" from pulling the latest version.
+torch==2.3.1
+torchaudio==2.3.1

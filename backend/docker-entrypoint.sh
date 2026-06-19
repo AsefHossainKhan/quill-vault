@@ -13,7 +13,7 @@ echo "╚═══════════════════════�
 if [ "${WHISPER_DEVICE}" = "cuda" ]; then
     if python3 -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
         GPU_NAME=$(python3 -c "import torch; print(torch.cuda.get_device_name(0))")
-        GPU_MEM=$(python3 -c "import torch; print(round(torch.cuda.get_device_properties(0).total_mem / 1024**3, 1))")
+        GPU_MEM=$(python3 -c "import torch; print(round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 1))")
         echo "✅ GPU detected: ${GPU_NAME} (${GPU_MEM} GB)"
     else
         echo "⚠️  WHISPER_DEVICE=cuda but no GPU found! Falling back to CPU."
@@ -26,6 +26,12 @@ fi
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     echo "🔄 Running database migrations..."
     python3 -m alembic upgrade head || echo "⚠️  Migrations failed (DB may not be ready yet)"
+fi
+
+# ── Seed database (templates + test users) ───────────────────
+if [ "${SEED_DB:-true}" = "true" ]; then
+    echo "🌱 Seeding database..."
+    python3 -m src.seed || echo "⚠️  Seeding failed (may already be seeded)"
 fi
 
 # ── Determine which service to run ───────────────────────────

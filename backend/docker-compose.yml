@@ -42,7 +42,7 @@ services:
   # ── FastAPI Backend (CPU mode) ──────────────────────────────
   backend-api:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
@@ -74,7 +74,7 @@ services:
   # ── Celery Worker (CPU mode) ───────────────────────────────
   celery-worker:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
