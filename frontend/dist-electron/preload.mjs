@@ -1,11 +1,1 @@
-"use strict";
-const electron = require("electron");
-const electronAPI = {
-  // Window controls
-  minimizeWindow: () => electron.ipcRenderer.send("window:minimize"),
-  maximizeWindow: () => electron.ipcRenderer.send("window:maximize"),
-  closeWindow: () => electron.ipcRenderer.send("window:close"),
-  // Audio
-  getDesktopSources: () => electron.ipcRenderer.invoke("audio:get-desktop-sources")
-};
-electron.contextBridge.exposeInMainWorld("electronAPI", electronAPI);
+"use strict";const e=require("electron"),i={minimizeWindow:()=>e.ipcRenderer.send("window:minimize"),maximizeWindow:()=>e.ipcRenderer.send("window:maximize"),closeWindow:()=>e.ipcRenderer.send("window:close"),getDesktopSources:()=>e.ipcRenderer.invoke("audio:get-desktop-sources")};e.contextBridge.exposeInMainWorld("electronAPI",i);

@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
+import { app, BrowserWindow, ipcMain, desktopCapturer, session, protocol } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -22,12 +23,23 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
+// ── Register custom protocol for serving bundled models/WASM from asar ──
+//    In packaged mode the renderer loads from file:// and relative fetch()
+//    calls to /models/… or /wasm/… won't resolve.  The app:// protocol
+//    maps to the renderer dist folder (inside asar).
+if (!VITE_DEV_SERVER_URL) {
+  protocol.registerSchemesAsPrivileged([
+    {
+      scheme: 'app',
+      privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+    },
+  ])
+}
+
 let win: BrowserWindow | null
 
-// ── Enable crossOriginIsolated for WASM multi-threading ──────
-// webSecurity: false prevents COEP from blocking sub-resources.
-// The response headers enable crossOriginIsolated mode (SharedArrayBuffer).
 app.whenReady().then(() => {
+  // ── COOP/COEP headers for SharedArrayBuffer (WASM multi-threading) ──
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -37,6 +49,49 @@ app.whenReady().then(() => {
       },
     })
   })
+
+  // ── Register app:// protocol handler (packaged mode only) ──
+  //    Maps app:// URLs to the renderer dist directory so that
+  //    fetch('/models/…') and fetch('/wasm/…') work from the asar.
+  if (!VITE_DEV_SERVER_URL) {
+    const mimeTypes: Record<string, string> = {
+      '.html': 'text/html', '.js': 'application/javascript', '.mjs': 'application/javascript',
+      '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm',
+      '.svg': 'image/svg+xml', '.png': 'image/png', '.onnx': 'application/octet-stream',
+      '.txt': 'text/plain', '.vocab': 'application/octet-stream',
+    }
+    protocol.handle('app', (request) => {
+      const url = new URL(request.url)
+      // app://index.html/ → hostname='index.html', pathname='/'
+      // app://index.html/assets/foo.css → hostname='index.html', pathname='/assets/foo.css'
+      // app://models/x/config.json → hostname='models', pathname='/x/config.json'
+      let filePath = path.join(RENDERER_DIST, url.pathname)
+      // If resolved path is a directory, serve index.html from it
+      try {
+        if (fs.statSync(filePath).isDirectory()) {
+          filePath = path.join(filePath, 'index.html')
+        }
+      } catch { /* file doesn't exist yet, that's fine */ }
+      try {
+        // fs.readFileSync works transparently inside asar archives
+        const data = fs.readFileSync(filePath)
+        const ext = path.extname(filePath).toLowerCase()
+        const contentType = mimeTypes[ext] ?? 'application/octet-stream'
+        return new Response(data, {
+          status: 200,
+          headers: { 'Content-Type': contentType },
+        })
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        // Write debug info next to the exe so we can diagnose 404s
+        try {
+          const logPath = path.join(path.dirname(process.execPath), 'qv-protocol-debug.log')
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${request.url}\n  → filePath: ${filePath}\n  → RENDERER_DIST: ${RENDERER_DIST}\n  → error: ${msg}\n\n`)
+        } catch { /* ignore logging errors */ }
+        return new Response('Not found', { status: 404 })
+      }
+    })
+  }
 })
 
 function createWindow() {
@@ -60,8 +115,10 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    // Load via app:// protocol so that relative fetch('/models/…') resolves
+    // to the dist directory inside the asar archive.
+    // Triple-slash (app:///) ensures no hostname — pathname is the full path.
+    win.loadURL('app:///index.html')
   }
 }
 
