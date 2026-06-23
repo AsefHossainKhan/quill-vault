@@ -184,9 +184,51 @@ This launches the Vite dev server and opens the Electron window with hot reload.
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start Vite dev server + Electron |
-| `npm run build` | Build for production |
+| `npm run build` | Build for production (current platform) |
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview production build |
+
+### Building Distributable Packages
+
+The build bundles the Electron app, React UI, WASM runtime, **and** the Whisper ONNX model (~149 MB) into a single installer. No internet connection is needed at runtime.
+
+```bash
+cd frontend
+
+# Build for the current platform (Windows .exe, macOS .dmg, or Linux .AppImage)
+npm run build
+
+# Build for a specific platform
+npm run build -- --win       # Windows NSIS installer
+npm run build -- --mac       # macOS DMG + ZIP
+npm run build -- --linux     # Linux AppImage
+```
+
+To set a custom backend URL at build time:
+
+```bash
+# Windows PowerShell
+$env:VITE_API_BASE_URL = "http://your-server:8000/api"; npm run build
+
+# Git Bash / macOS / Linux
+VITE_API_BASE_URL="http://your-server:8000/api" npm run build
+```
+
+Or create a `frontend/.env.production` file:
+
+```
+VITE_API_BASE_URL=http://your-server:8000/api
+```
+
+#### Build output
+
+| Platform | Output | Location |
+|----------|--------|----------|
+| Windows | `QuillVault-Windows-X.X.X-Setup.exe` | `frontend/release/X.X.X/` |
+| macOS | `QuillVault-Mac-X.X.X-Installer.dmg` | `frontend/release/X.X.X/` |
+| Linux | `QuillVault-Linux-X.X.X.AppImage` | `frontend/release/X.X.X/` |
+
+> **Note:** macOS builds with code signing require a Mac. Cross-compilation from Windows/Linux works but produces unsigned binaries.
 
 ---
 
